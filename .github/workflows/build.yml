@@ -4,11 +4,16 @@ on:
 
 jobs:
   build:
-    runs-on: macos-13
-    timeout-minutes: 30
+    runs-on: macos-15
+    timeout-minutes: 40
     steps:
       - name: Clone WebDriverAgent
         run: git clone --depth 1 https://github.com/appium/WebDriverAgent.git wda
+
+      - name: Show toolchain
+        run: |
+          xcodebuild -version
+          xcrun --sdk iphoneos --show-sdk-version
 
       - name: Build for device
         run: |
@@ -23,13 +28,26 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             CONFIGURATION_BUILD_DIR="$PWD/build" | tail -30
 
+      - name: Embed missing XCTest dylibs
+        run: |
+          APP=wda/build/WebDriverAgentRunner-Runner.app
+          ls -la "$APP/Frameworks" || true
+          SRC=$(find /Applications/Xcode*.app -name 'lib_TestingInterop.dylib' 2>/dev/null | head -1)
+          echo "source dylib: $SRC"
+          if [ -n "$SRC" ] && [ ! -f "$APP/Frameworks/lib_TestingInterop.dylib" ]; then
+            cp "$SRC" "$APP/Frameworks/"
+            echo "copied"
+          fi
+          ls -la "$APP/Frameworks" | grep -i testinginterop || echo "still missing"
+
       - name: Package IPA
         run: |
-          ls -la wda/build || true
           mkdir -p Payload
           cp -R wda/build/WebDriverAgentRunner-Runner.app Payload/
+          find Payload -name '*.dSYM' -exec rm -rf {} + 2>/dev/null || true
           zip -qr WebDriverAgent.ipa Payload
           ls -lh WebDriverAgent.ipa
+          unzip -l WebDriverAgent.ipa | grep -i testinginterop || echo "NOT IN IPA"
 
       - uses: actions/upload-artifact@v4
         with:
