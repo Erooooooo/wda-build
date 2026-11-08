@@ -1,0 +1,17 @@
+name: find-dylib
+on: workflow_dispatch
+jobs:
+  f:
+    runs-on: macos-15
+    steps:
+      - name: Locate TestingInterop
+        run: |
+          xcodebuild -version
+          echo "=== inside Xcode.app ==="
+          find /Applications/Xcode*.app -iname '*TestingInterop*' 2>/dev/null | head -20
+          echo "=== system-wide (limited) ==="
+          find /Library/Developer /Volumes -iname '*TestingInterop*' 2>/dev/null | head -20
+          echo "=== XCTest frameworks in SDK ==="
+          find /Applications/Xcode*.app/Contents/Developer/Platforms/iPhoneOS.platform -maxdepth 6 -name 'XCTest*.framework' 2>/dev/null | head -10
+          echo "=== ddi ==="
+          ls -la /Applications/Xcode*.app/Contents/Developer/Platforms/iPhoneOS.platform/DeviceSupport 2>/dev/null | head -10
